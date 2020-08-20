@@ -197,7 +197,16 @@ namespace AForge { namespace Video { namespace FFMPEG
         /// <exception cref="VideoException">A error occurred while reading next video frame. See exception message.</exception>
         /// 
 		Bitmap^ ReadVideoFrame( );
+		Bitmap^ ReadVideoFrame(Int64 frame);
 
+		bool SeekFrame(Int64 frame);
+
+		Int64 SeekKeyFrame(Int64 frame);
+
+		Int64 GetDts();
+#if _DEBUG
+		Int64 GetPts();
+#endif
         /// <summary>
         /// Close currently opened video file if any.
         /// </summary>
@@ -213,7 +222,10 @@ namespace AForge { namespace Video { namespace FFMPEG
 		Int64 m_framesCount;
 
 	private:
-		Bitmap^ DecodeVideoFrame( );
+
+		bool ReadVideoFrameBasic();
+
+		Bitmap^ FetchVideoFrame( );
 
 		// Checks if video file was opened
 		void CheckIfVideoFileIsOpen( )

@@ -1,3 +1,7 @@
+Externals/ffmpeg/lib64/
+*.db
+*.opendb
+
 #################
 ## Visual Studio
 #################

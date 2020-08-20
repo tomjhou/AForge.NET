@@ -91,9 +91,7 @@
     <Compile Include="ColorSlider.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Histogram.cs">
-      <SubType>Component</SubType>
-    </Compile>
+    <Compile Include="Histogram.cs" />
     <Compile Include="Joystick.cs" />
     <Compile Include="JoystickAPI.cs" />
     <Compile Include="ManipulatorControl.cs">
