@@ -204,10 +204,10 @@ namespace AForge { namespace Video { namespace FFMPEG
 		Int64 SeekKeyFrame(Int64 frame);
 
 		Int64 GetDts();
-#if _DEBUG
 		Int64 GetPts();
-#endif
-        /// <summary>
+		Int64 GetDurationMicroseconds();
+
+		/// <summary>
         /// Close currently opened video file if any.
         /// </summary>
         /// 

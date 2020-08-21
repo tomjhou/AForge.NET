@@ -77,6 +77,12 @@ static libffmpeg::AVFormatContext* open_file( char* fileName )
 }
 #pragma managed(pop)
 
+Int64 framePts;
+Int64 durationMicroseconds;
+#if _DEBUG
+bool weirdFlag = false;
+#endif
+
 // Opens the specified video file
 void VideoFileReader::Open( String^ fileName )
 {
@@ -109,11 +115,12 @@ void VideoFileReader::Open( String^ fileName )
 		if ( libffmpeg::av_find_stream_info( data->FormatContext ) < 0 )
 			throw gcnew VideoException( "Cannot find stream information." );
 
-		// DEBUGGING
+		durationMicroseconds = data->FormatContext->duration;    // In both AVI and MKV file, this is duration in microseconds
+
 #if _DEBUG
 		int ns = data->FormatContext->nb_streams;
-		Int64 firstData = data->FormatContext->start_time;
-		Int64 dur = data->FormatContext->duration;
+		Int64 firstData = data->FormatContext->start_time;  // In MKV file, this is ..
+		int bitrate = data->FormatContext->bit_rate;  // In both AVI and MKV, this is about 5% higher than what I calculate from file size (e.g. 202172 vs 192336, and 316357 vs 301kbits/sec)
 #endif
 		// search for the first video stream
 		for ( unsigned int i = 0; i < data->FormatContext->nb_streams; i++ )
@@ -169,15 +176,17 @@ void VideoFileReader::Open( String^ fileName )
 #if _DEBUG
 		num = data->VideoStream->r_frame_rate.num;
 		den = data->VideoStream->r_frame_rate.den;
-		libffmpeg::AVRational stream_time_base = data->VideoStream->time_base;
+		libffmpeg::AVRational stream_time_base = data->VideoStream->time_base; // In MKV file, this is 1/1000. In AVI this is 1/frame_rate
 		int num2 = stream_time_base.num;
 		int den2 = stream_time_base.den;
+		Int64 numFrames = data->VideoStream->duration; // In MKV file, this is -9 x 10^18, i.e. Int64.MinValue. In AVI this is # of frames
 #endif
 		m_frameRate = data->VideoStream->r_frame_rate.num / data->VideoStream->r_frame_rate.den;
 		m_codecName = gcnew String( data->CodecContext->codec->name );
-		m_framesCount = data->VideoStream->nb_frames;
+		m_framesCount = data->VideoStream->nb_frames;  // In MKV file, this is 0
 
-		success = true;
+		
+success = true;
 	}
 	finally
 	{
@@ -212,12 +221,6 @@ void VideoFileReader::Close(  )
 		data = nullptr;
 	}
 }
-
-#if _DEBUG
-Int64 frameNumPts;
-int duration;
-bool weirdFlag = false;
-#endif
 
 // Becomes true once frame is read and decoded into memory. After it is "gotten", i.e.
 // copied to Bitmap and returned to caller, this flag becomes false.
@@ -261,7 +264,8 @@ bool VideoFileReader::ReadVideoFrameBasic(  )
 			// did we finish the current frame? Then we can return
 			if ( frameFinished )
 			{
-				data->frame_number = data->Packet->dts;
+				data->frame_number = data->Packet->dts; // In MKV file, this is Int64.MinValue, i.e. -9 x 10^18
+				framePts = data->Packet->pts;
 				haveDecodedFrameToFetch = true;
 				return true;
 			}
@@ -274,8 +278,8 @@ bool VideoFileReader::ReadVideoFrameBasic(  )
 
 #if _DEBUG
 		// DEBUG INSPECTION
-		frameNumPts = data->Packet->pts;
-		duration = data->Packet->duration;
+		framePts = data->Packet->pts;
+		int frameDuration = data->Packet->duration;
 		if (bytesDecoded > 0)
 		{
 			// Incomplete/missing frame? Why does this happen?
@@ -313,7 +317,7 @@ bool VideoFileReader::ReadVideoFrameBasic(  )
 
 		// DEBUG INSPECTION
 #if _DEBUG
-		duration = data->Packet->duration;
+		frameDuration = data->Packet->duration;
 #endif
 	}
 
@@ -386,6 +390,9 @@ bool VideoFileReader::SeekFrame(Int64 frame)
 		// Need to read at least one frame to see what frame we are at. Then loop until we are at (or past)
 		// the desired frame
 		haveDecodedFrameToFetch = ReadVideoFrameBasic();
+		if (!haveDecodedFrameToFetch)
+			// EOF or file error
+			return false;
 	} while (data->frame_number < frame);
 
 	return haveDecodedFrameToFetch;
@@ -402,7 +409,7 @@ Int64 VideoFileReader::SeekKeyFrame(Int64 frame)
 
 	ReadVideoFrameBasic();
 
-	return data->frame_number;
+	return framePts;// data->frame_number;
 }
 
 // Reads next frame, decodes it into memory, and fetches it as a Bitmap.
@@ -441,13 +448,17 @@ Int64 VideoFileReader::GetDts()
 	return data->frame_number;
 }
 
-#if _DEBUG
 // Read next video frame of the current video file
 Int64 VideoFileReader::GetPts()
 {
-	return frameNumPts;
+	return framePts;
 }
-#endif
+
+// Read next video frame of the current video file
+Int64 VideoFileReader::GetDurationMicroseconds()
+{
+	return durationMicroseconds;
+}
 
 // Video frame has already been decoded, but will now be copied to managed Bitmap
 Bitmap^ VideoFileReader::FetchVideoFrame( )
