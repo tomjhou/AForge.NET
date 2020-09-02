@@ -146,6 +146,35 @@ namespace AForge { namespace Video { namespace FFMPEG
 			}
 		}
 
+		property int TimebaseNumerator
+		{
+			int get()
+			{
+				CheckIfVideoFileIsOpen();
+				return m_timebaseNumerator;
+			}
+		}
+
+		property int TimebaseDenominator
+		{
+			int get()
+			{
+				CheckIfVideoFileIsOpen();
+				return m_timebaseDenominator;
+			}
+		}
+
+
+		// Get decode time of current frame
+		property Int64 DurationMicroseconds
+		{
+			Int64 get()
+			{
+				return m_durationMicroseconds;
+			}
+		}
+
+
     protected:
 
         /// <summary>
@@ -205,7 +234,6 @@ namespace AForge { namespace Video { namespace FFMPEG
 
 		Int64 GetDts();
 		Int64 GetPts();
-		Int64 GetDurationMicroseconds();
 
 		/// <summary>
         /// Close currently opened video file if any.
@@ -220,6 +248,11 @@ namespace AForge { namespace Video { namespace FFMPEG
 		int	m_frameRate;
 		String^ m_codecName;
 		Int64 m_framesCount;
+		int m_timebaseNumerator;
+		int m_timebaseDenominator;
+
+		Int64 m_pts;
+		Int64 m_durationMicroseconds;
 
 	private:
 
